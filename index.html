@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>非言語サポーターアプリ そよぎ | Soyogi</title>
+
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="非言語のサポート — 鼓動と砂のあかり">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="そよぎ">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="canvas"></canvas>
+
+    <div class="app-name" id="app-name">非言語サポーターアプリ　そよぎ</div>
+    <div class="timer-display" id="timer-display">0:00</div>
+
+    <div class="first-hint" id="first-hint">そっと、触れてみて</div>
+
+    <div class="bottom-bar">
+      <button class="circle-btn" id="btn-sand" aria-label="Sand mode">🏜️</button>
+      <button class="circle-btn" id="btn-settings" aria-label="Settings">⚙️</button>
+      <button class="circle-btn" id="btn-heart" aria-label="Heartbeat mode">🩷</button>
+    </div>
+
+    <!-- ===== 設定パネル ===== -->
+    <div class="settings-panel" id="settings-panel">
+      <div class="settings-title" id="title-settings">⚙️ 設定</div>
+
+      <div class="section-label" id="lbl-lang">言語</div>
+      <div class="chip-row">
+        <button class="chip" id="chip-lang-ja" data-lang="ja">JP</button>
+        <button class="chip" id="chip-lang-en" data-lang="en">EN</button>
+      </div>
+
+      <div class="section-label" id="lbl-default-mode">起動時のモード</div>
+      <div class="chip-row">
+        <button class="chip" id="chip-mode-heartbeat" data-mode="heartbeat"><span id="lbl-mode-heart">🫀 鼓動</span></button>
+        <button class="chip" id="chip-mode-sand" data-mode="sand"><span id="lbl-mode-sand">🏜️ 砂</span></button>
+      </div>
+
+      <div class="switch-row">
+        <div class="label" id="lbl-vibration">振動</div>
+        <label class="switch">
+          <input type="checkbox" id="chk-vibration">
+          <span class="slider-switch"></span>
+        </label>
+      </div>
+
+      <div class="switch-row">
+        <div class="label" id="lbl-sound">音</div>
+        <label class="switch">
+          <input type="checkbox" id="chk-sound">
+          <span class="slider-switch"></span>
+        </label>
+      </div>
+
+      <div class="slider-row" id="volume-row" style="display:none;">
+        <span class="endpoint" id="lbl-vol-lo">小</span>
+        <input type="range" id="slider-volume" min="0" max="1" step="0.166" value="0.5">
+        <span class="endpoint" id="lbl-vol-hi">大</span>
+      </div>
+
+      <div class="section-label" id="lbl-timer">おやすみタイマー</div>
+      <div class="chip-row">
+        <button class="chip" data-timer="15">15分</button>
+        <button class="chip" data-timer="30">30分</button>
+        <button class="chip" data-timer="60">60分</button>
+        <button class="chip" data-timer="0" id="chip-timer-off">なし</button>
+      </div>
+
+      <div class="section-label" id="lbl-pulse-speed">鼓動の速さ</div>
+      <div class="chip-row">
+        <button class="chip" data-speed="0" id="chip-speed-0">普通</button>
+        <button class="chip" data-speed="1" id="chip-speed-1">ゆっくり</button>
+        <button class="chip" data-speed="2" id="chip-speed-2">もっとゆっくり</button>
+      </div>
+
+      <div class="section-label" id="lbl-pulse-size">鼓動の大きさ</div>
+      <div class="slider-row">
+        <span class="endpoint" id="lbl-size-lo">小</span>
+        <input type="range" id="slider-size" min="0.5" max="4" step="0.5833" value="1">
+        <span class="endpoint" id="lbl-size-hi">大</span>
+      </div>
+
+      <div class="section-label" id="lbl-sand-fade">砂の消え方</div>
+      <div class="chip-row">
+        <button class="chip" data-fade="-1" id="chip-fade-fast">早く消える</button>
+        <button class="chip" data-fade="0" id="chip-fade-normal">普通</button>
+        <button class="chip" data-fade="1" id="chip-fade-slow">ゆっくり消える</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <a class="soyogi-link" id="link-soyogi">🌿 困ったときは → そよぎ</a>
+      <div class="credit" id="credit">開発：介護と支援の相談どころ　そよぎ</div>
+
+      <button class="back-btn" id="btn-back" type="button">もどる</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(e => console.warn('SW reg failed:', e));
+      });
+    }
+  </script>
+</body>
+</html>
