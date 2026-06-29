@@ -125,7 +125,9 @@ function playHeartbeat() {
   if (!ac) return;
   if (ac.state === 'suspended') ac.resume();
   // Two-tone "lub-dub"
-  const vol = settings.volume * 0.6;
+  // 音量は二乗カーブ：最小はごく小さく、最大はしっかり大きく（調整幅を広げる）
+  const v = settings.volume;
+  const vol = v * v;
   const t0 = ac.currentTime;
   function tone(at, f, dur, peak) {
     const osc = ac.createOscillator();
@@ -213,20 +215,17 @@ function updateTimerDisplay() {
 let heartLightPos = null;       // {x, y} or null = 中央
 let heartPulseValue = 0;        // 0..1（描画用）
 let heartPulseStart = performance.now();
-let heartBeatTimer = null;
+let lastBeatX = 0;              // 前フレームの拍位相（ピーク検出用）
+let settingsOpen = false;       // 設定パネル表示中フラグ（開いている間は鼓動プレビューを鳴らす）
 
 function startHeartbeat() {
   currentMode = 'heartbeat';
   heartPulseStart = performance.now();
-  if (heartBeatTimer) clearInterval(heartBeatTimer);
-  heartBeatTimer = setInterval(() => {
-    if (timerExpired) return;
-    vibrate(80);
-    playHeartbeat();
-  }, settings.pulseMillis());
+  lastBeatX = 0;
+  // 音・振動は描画ループ内で「見た目のピーク」に合わせて発火する（別タイマーは使わない）
 }
 function stopHeartbeat() {
-  if (heartBeatTimer) { clearInterval(heartBeatTimer); heartBeatTimer = null; }
+  // 旧：拍タイマーを止めていた。現在は描画ループ側で制御するため何もしない。
 }
 
 function drawHeartbeat() {
@@ -236,13 +235,19 @@ function drawHeartbeat() {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
 
-  // 0..1 で easeInOut した値
+  // 1拍 = period。x は1拍で 0→1 を進む（見た目は 0→1→0 の三角波で膨らんで縮む）
   const period = settings.pulseMillis();
-  const phase = ((performance.now() - heartPulseStart) % (period * 2)) / period; // 0..2
-  const tri = phase <= 1 ? phase : (2 - phase);
+  const x = ((performance.now() - heartPulseStart) % period) / period; // 0..1
+  const tri = x < 0.5 ? x * 2 : (1 - x) * 2;
   // easeInOut
   const eased = tri < 0.5 ? 2 * tri * tri : 1 - Math.pow(-2 * tri + 2, 2) / 2;
   heartPulseValue = eased;
+  // ピーク(x=0.5)を上向きに通過した瞬間に1拍 → 音と見た目を完全同期
+  if (lastBeatX < 0.5 && x >= 0.5 && !timerExpired) {
+    if (!settingsOpen) vibrate(80); // 設定プレビュー中は振動させない（音だけ）
+    playHeartbeat();
+  }
+  lastBeatX = x;
 
   const cx = heartLightPos ? heartLightPos.x : w / 2;
   const cy = heartLightPos ? heartLightPos.y : h / 2;
@@ -455,7 +460,8 @@ function onPointerUp(e) {
 
 // ===== 描画ループ =====
 function tick() {
-  if (currentMode === 'heartbeat') drawHeartbeat();
+  // 設定を開いている間は、現在のモードに関わらず鼓動プレビューを表示＆再生する
+  if (settingsOpen || currentMode === 'heartbeat') drawHeartbeat();
   else drawSand();
   requestAnimationFrame(tick);
 }
@@ -547,13 +553,21 @@ function refreshSettingsUI() {
 
 function openSettings() {
   $('settings-panel').classList.add('open');
+  settingsOpen = true;
+  ensureAudio();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  // プレビューの拍位相をリセットして気持ちよく始める
+  heartPulseStart = performance.now();
+  lastBeatX = 0;
   refreshSettingsUI();
 }
 function closeSettings() {
   $('settings-panel').classList.remove('open');
+  settingsOpen = false;
   // 設定変更を反映
   applyI18n();
-  startHeartbeat(); // rate / vibration を最新化
+  heartPulseStart = performance.now();
+  lastBeatX = 0;
   if (settings.timer == null) stopTimer();
   else if (timerEndAt == null) startTimerIfNeeded();
 }
@@ -610,8 +624,8 @@ function bindEvents() {
   // 音量
   $('slider-volume').addEventListener('input', (e) => {
     settings.volume = parseFloat(e.target.value);
+    // 設定中は鼓動プレビューが鳴り続けるので、次の拍で新しい音量が即反映される
   });
-  $('slider-volume').addEventListener('change', () => { if (settings.sound) playHeartbeat(); });
   // タイマー
   document.querySelectorAll('.chip[data-timer]').forEach(c => c.addEventListener('click', () => {
     const v = parseInt(c.dataset.timer);
@@ -622,7 +636,9 @@ function bindEvents() {
   document.querySelectorAll('.chip[data-speed]').forEach(c => c.addEventListener('click', () => {
     settings.pulseSpeed = parseInt(c.dataset.speed);
     refreshSettingsUI();
-    startHeartbeat();
+    // テンポを即反映（モードは変えない）。位相をリセットして滑らかに切替
+    heartPulseStart = performance.now();
+    lastBeatX = 0;
   }));
   // 鼓動サイズ
   $('slider-size').addEventListener('input', (e) => {
