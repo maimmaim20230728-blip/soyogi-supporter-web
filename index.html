@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>非言語サポーターアプリ そよぎ | Soyogi</title>
 
+  <!-- Farcaster Mini App 埋め込み（タイムラインで画像＋ボタンのカード・タップで起動） -->
+  <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://maimmaim20230728-blip.github.io/soyogi-supporter-web/icons/farcaster-embed.png","button":{"title":"🫧 Touch / 触れる","action":{"type":"launch_miniapp","name":"Nameless Pulse","url":"https://maimmaim20230728-blip.github.io/soyogi-supporter-web/","splashImageUrl":"https://maimmaim20230728-blip.github.io/soyogi-supporter-web/icons/icon-512.png","splashBackgroundColor":"#000000"}}}' />
+  <meta name="fc:frame" content='{"version":"1","imageUrl":"https://maimmaim20230728-blip.github.io/soyogi-supporter-web/icons/farcaster-embed.png","button":{"title":"🫧 Touch / 触れる","action":{"type":"launch_frame","name":"Nameless Pulse","url":"https://maimmaim20230728-blip.github.io/soyogi-supporter-web/","splashImageUrl":"https://maimmaim20230728-blip.github.io/soyogi-supporter-web/icons/icon-512.png","splashBackgroundColor":"#000000"}}}' />
+
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#000000">
   <meta name="description" content="非言語のサポート — 鼓動と砂のあかり">
@@ -116,6 +120,17 @@
         navigator.serviceWorker.register('./service-worker.js').catch(e => console.warn('SW reg failed:', e));
       });
     }
+  </script>
+  <!-- Farcaster Mini App SDK: 埋め込み(iframe/webview)時のみ esm.sh からSDKを読込み ready() 通知。通常ブラウザ/PWAでは読込まず軽さ維持。 -->
+  <script type="module">
+    (async () => {
+      if ((window.self !== window.top) || window.ReactNativeWebView) {
+        try {
+          const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk");
+          await sdk.actions.ready();
+        } catch (e) {}
+      }
+    })();
   </script>
 </body>
 </html>
