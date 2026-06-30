@@ -1,4 +1,9 @@
 {
+  "accountAssociation": {
+    "header": "eyJmaWQiOjMzMzkzMTUsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg2RGYyOTIyRjc4OUVmMTFmNjk3NDREMEZkYWZCNDhmN2VhNjRmYTExIn0",
+    "payload": "eyJkb21haW4iOiJzb3lvZ2ktc3VwcG9ydGVyLXdlYi52ZXJjZWwuYXBwIn0",
+    "signature": "LozMg1x0opJEyKLMvDNjkptHA47bDrE1GQzzCP0DPRg6PHLwSBaUUIv+li8cZuOaDsRvzVtLVMaYOrNJhCQ8Sxw="
+  },
   "miniapp": {
     "version": "1",
     "name": "Nameless Pulse",
