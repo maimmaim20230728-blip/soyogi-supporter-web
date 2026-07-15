@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>非言語サポーターアプリ そよぎ | Soyogi</title>
 
-  <!-- Farcaster Mini App 埋め込み（タイムラインで画像＋ボタンのカード・タップで起動） -->
-  <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://soyogi-supporter-web.vercel.app/icons/farcaster-embed.png","button":{"title":"🫧 Touch / 触れる","action":{"type":"launch_miniapp","name":"Nameless Pulse","url":"https://soyogi-supporter-web.vercel.app/","splashImageUrl":"https://soyogi-supporter-web.vercel.app/icons/icon-512.png","splashBackgroundColor":"#000000"}}}' />
-  <meta name="fc:frame" content='{"version":"1","imageUrl":"https://soyogi-supporter-web.vercel.app/icons/farcaster-embed.png","button":{"title":"🫧 Touch / 触れる","action":{"type":"launch_frame","name":"Nameless Pulse","url":"https://soyogi-supporter-web.vercel.app/","splashImageUrl":"https://soyogi-supporter-web.vercel.app/icons/icon-512.png","splashBackgroundColor":"#000000"}}}' />
+  <!-- Farcaster Mini App 埋め込み（タイムラインで画像＋ボタンのカードとして表示・タップで起動） -->
+  <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://maimmaim20230728-blip.github.io/nameless-pulse-web/icons/farcaster-embed.png","button":{"title":"🫧 Touch / 触れる","action":{"type":"launch_miniapp","name":"Nameless Pulse","url":"https://maimmaim20230728-blip.github.io/nameless-pulse-web/","splashImageUrl":"https://maimmaim20230728-blip.github.io/nameless-pulse-web/icons/icon-512.png","splashBackgroundColor":"#000000"}}}' />
+  <meta name="fc:frame" content='{"version":"1","imageUrl":"https://maimmaim20230728-blip.github.io/nameless-pulse-web/icons/farcaster-embed.png","button":{"title":"🫧 Touch / 触れる","action":{"type":"launch_frame","name":"Nameless Pulse","url":"https://maimmaim20230728-blip.github.io/nameless-pulse-web/","splashImageUrl":"https://maimmaim20230728-blip.github.io/nameless-pulse-web/icons/icon-512.png","splashBackgroundColor":"#000000"}}}' />
 
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#000000">
@@ -30,6 +30,7 @@
     <div class="timer-display" id="timer-display">0:00</div>
 
     <div class="first-hint" id="first-hint">そっと、触れてみて</div>
+    <div class="good-night" id="good-night">おやすみなさい</div>
 
     <div class="bottom-bar">
       <button class="circle-btn" id="btn-sand" aria-label="Sand mode">🏜️</button>
@@ -42,10 +43,8 @@
       <div class="settings-title" id="title-settings">⚙️ 設定</div>
 
       <div class="section-label" id="lbl-lang">言語</div>
-      <div class="chip-row">
-        <button class="chip" id="chip-lang-ja" data-lang="ja">JP</button>
-        <button class="chip" id="chip-lang-en" data-lang="en">EN</button>
-      </div>
+      <!-- 言語チップは app.js の renderLangChips() が翻訳済み言語だけ動的生成する -->
+      <div class="chip-row" id="lang-chips"></div>
 
       <div class="section-label" id="lbl-default-mode">起動時のモード</div>
       <div class="chip-row">
@@ -59,6 +58,13 @@
           <input type="checkbox" id="chk-vibration">
           <span class="slider-switch"></span>
         </label>
+      </div>
+
+      <div class="section-label" id="lbl-vibe-strength" style="display:none;">振動の強さ</div>
+      <div class="chip-row" id="vibe-strength-row" style="display:none;">
+        <button class="chip" data-vibe="0" id="chip-vibe-0">よわい</button>
+        <button class="chip" data-vibe="1" id="chip-vibe-1">ふつう</button>
+        <button class="chip" data-vibe="2" id="chip-vibe-2">つよい</button>
       </div>
 
       <div class="switch-row">
@@ -121,14 +127,15 @@
       });
     }
   </script>
-  <!-- Farcaster Mini App SDK: 埋め込み(iframe/webview)時のみ esm.sh からSDKを読込み ready() 通知。通常ブラウザ/PWAでは読込まず軽さ維持。 -->
+  <!-- Farcaster Mini App SDK: 埋め込み表示(iframe/webview)時のみ esm.sh からSDKを読込み ready() を通知。
+       通常ブラウザ/PWAでは読み込まないので軽さ維持。 -->
   <script type="module">
     (async () => {
       if ((window.self !== window.top) || window.ReactNativeWebView) {
         try {
           const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk");
           await sdk.actions.ready();
-        } catch (e) {}
+        } catch (e) { /* Farcaster外では何もしない */ }
       }
     })();
   </script>
