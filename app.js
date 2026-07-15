@@ -529,12 +529,14 @@ let currentMode = settings.defaultMode || 'heartbeat';
 let timerEndAt = null;
 let timerInterval = null;
 let timerExpired = false;
+let armedMinutes = null;   // いまアーム中の長さ（設定変更の検知用）
 
 function startTimerIfNeeded() {
   stopTimer();
   hideGoodNight();
   if (settings.timer == null) return;
   timerExpired = false;
+  armedMinutes = settings.timer;
   timerEndAt = Date.now() + settings.timer * 60 * 1000;
   const el = $('timer-display');
   el.classList.add('active');
@@ -544,6 +546,7 @@ function startTimerIfNeeded() {
 function stopTimer() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   timerEndAt = null;
+  armedMinutes = null;
   $('timer-display').classList.remove('active');
 }
 function updateTimerDisplay() {
@@ -554,6 +557,7 @@ function updateTimerDisplay() {
   $('timer-display').textContent = `${m}:${String(s).padStart(2, '0')}`;
   if (remain <= 0) {
     timerExpired = true;   // 鼓動を止めて「おやすみなさい」を表示（タップで再開）
+    settings.timer = null; // 都度設定なので満了で選択も「なし」に戻す（Flutter版と同じ状態遷移）
     stopTimer();
     showGoodNight();
   }
@@ -950,9 +954,11 @@ function refreshSettingsUI() {
   });
 }
 
+let timerSelAtOpen = null;   // 設定を開いた時点のタイマー選択（変更検知用）
 function openSettings() {
   $('settings-panel').classList.add('open');
   settingsOpen = true;
+  timerSelAtOpen = settings.timer;
   ensureAudio();
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   // プレビューの拍位相をリセットして気持ちよく始める
@@ -967,8 +973,19 @@ function closeSettings() {
   applyI18n();
   heartPulseStart = performance.now();
   lastBeatX = 0;
-  if (settings.timer == null) stopTimer();
-  else if (timerEndAt == null) startTimerIfNeeded();
+  // 🔴タイマー反映（都度設定）を一貫化。設定中に選択を**変更した時だけ**反映する:
+  // ・「なし」に変更 → 停止。眠り中なら起こして通常に戻す（旧: おやすみ表示が残る不具合）
+  // ・長さを変更 → 眠り中なら起こしてから新しい長さでアーム（旧: 稼働中の変更が無視される不具合）
+  // ・無変更 → 何もしない＝稼働中は継続・眠り中は眠ったまま（旧: 勝手に再アーム＆起床する不具合。Flutter版と同挙動に）
+  if (settings.timer !== timerSelAtOpen) {
+    if (settings.timer == null) {
+      stopTimer();
+      if (timerExpired) wakeUpFromSleep();
+    } else {
+      if (timerExpired) wakeUpFromSleep();
+      startTimerIfNeeded();
+    }
+  }
 }
 
 // ===== First Hint =====
