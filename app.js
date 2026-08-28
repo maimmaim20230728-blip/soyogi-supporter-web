@@ -1069,7 +1069,7 @@ function bindEvents() {
   }));
   // そよぎHP
   $('link-soyogi').addEventListener('click', () => {
-    window.open('https://soyogi.hp.peraichi.com/top', '_blank', 'noopener');
+    window.open('https://soudansoyogi.com/', '_blank', 'noopener');
   });
 
   // Resume audio context on first user interaction
