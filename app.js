@@ -505,9 +505,16 @@ function playWind() {
 }
 
 // ===== Vibration =====
+// ブラウザは「まだ一度も触れていない」ページの振動を止めて console にエラーを出すので、
+// 触れる前は呼ばない（どのみち振動しないので、動きは変わらない）
+function canVibrate() {
+  if (!navigator.vibrate) return false;
+  const ua = navigator.userActivation;
+  return !ua || ua.hasBeenActive;
+}
 function vibrate(ms, intensity) {
   if (!settings.vibration) return;
-  if (navigator.vibrate) navigator.vibrate(ms);
+  if (canVibrate()) navigator.vibrate(ms);
 }
 // 心音に合わせた二段振動（トッ=S1 / 休 / トクン=S2）。
 // web は navigator.vibrate に振幅制御が無いので、強さは「長さ」で表現する。
@@ -518,7 +525,7 @@ const VIBE_PATTERNS = {
 };
 function vibrateHeartbeat() {
   if (!settings.vibration) return;
-  if (!navigator.vibrate) return;
+  if (!canVibrate()) return;
   navigator.vibrate(VIBE_PATTERNS[settings.vibrationStrength] || VIBE_PATTERNS[1]);
 }
 
@@ -1067,10 +1074,7 @@ function bindEvents() {
     settings.sandFade = parseInt(c.dataset.fade);
     refreshSettingsUI();
   }));
-  // そよぎHP
-  $('link-soyogi').addEventListener('click', () => {
-    window.open('https://soudansoyogi.com/', '_blank', 'noopener');
-  });
+  // そよぎHP：<a href target="_blank"> にしたので JS で開かない（キーボードでも届く・二重に開かない）
 
   // Resume audio context on first user interaction
   document.addEventListener('pointerdown', () => {
