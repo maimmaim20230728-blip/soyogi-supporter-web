@@ -558,6 +558,7 @@ function startTimerIfNeeded() {
   hideGoodNight();
   if (settings.timer == null) return;
   timerExpired = false;
+  updateWakeLock();
   armedMinutes = settings.timer;
   timerEndAt = Date.now() + settings.timer * 60 * 1000;
   const el = $('timer-display');
@@ -585,8 +586,34 @@ function updateTimerDisplay() {
     showGoodNight();
   }
 }
-function showGoodNight() { $('good-night').classList.add('show'); }
-function hideGoodNight() { $('good-night').classList.remove('show'); }
+function showGoodNight() { $('good-night').classList.add('show'); updateWakeLock(); }
+function hideGoodNight() { $('good-night').classList.remove('show'); updateWakeLock(); }
+
+// ===== 画面を点けたままにする（Screen Wake Lock・対応ブラウザだけ）=====
+// 鼓動・砂の画面にいる間だけ取り、「おやすみなさい」の状態で手放す（Android 版と同じ使い心地）。
+// 裏のタブに回ると自動で外れるので、表に戻ったときに取り直す。
+let wakeLockSentinel = null;
+let wakeLockPending = false;
+function wakeLockWanted() {
+  return !timerExpired && document.visibilityState !== 'hidden';
+}
+function updateWakeLock() {
+  if (typeof navigator === 'undefined' || !navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') return;
+  if (wakeLockWanted()) {
+    if (wakeLockSentinel || wakeLockPending) return;
+    wakeLockPending = true;
+    navigator.wakeLock.request('screen').then((s) => {
+      wakeLockPending = false;
+      wakeLockSentinel = s;
+      if (s && s.addEventListener) s.addEventListener('release', () => { if (wakeLockSentinel === s) wakeLockSentinel = null; });
+      if (!wakeLockWanted()) updateWakeLock(); // 待っている間に眠りに入った／裏に回った
+    }).catch(() => { wakeLockPending = false; /* 取れない環境（省電力など）は何もしない */ });
+  } else if (wakeLockSentinel) {
+    const s = wakeLockSentinel;
+    wakeLockSentinel = null;
+    try { Promise.resolve(s.release()).catch(() => {}); } catch (e) { /* 無視 */ }
+  }
+}
 // 「おやすみなさい」をタップ → 鼓動を再開（復帰不能だった問題の解消）
 function wakeUpFromSleep() {
   timerExpired = false;
@@ -1096,6 +1123,10 @@ function bindEvents() {
   document.addEventListener('pointerdown', () => {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   }, { once: true });
+
+  // 画面の常時点灯：表に戻ったら取り直す。取れていないときは触れたときにもう一度試す
+  document.addEventListener('visibilitychange', updateWakeLock);
+  document.addEventListener('pointerdown', updateWakeLock);
 }
 
 // ===== 起動 =====
@@ -1108,6 +1139,7 @@ function init() {
   renderLangChips();
   setMode(settings.defaultMode);
   startTimerIfNeeded();
+  updateWakeLock();
   if (!settings.firstLaunch) {
     $('first-hint').style.display = 'none';
   }

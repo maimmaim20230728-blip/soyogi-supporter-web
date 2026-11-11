@@ -128,8 +128,24 @@ const fakeRaf = (cb) => { if (rafCount < 3) { rafCount++; cb(Date.now()); } retu
 
 // ── app.js をサンドボックスで起動 ──────────────────────────────────
 const appSrc = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+// 時計とタイマーは偽物を渡す（おやすみタイマーの満了を待たずに確かめるため）
+let fakeNowMs = Date.now();
+const FakeDate = { now: () => fakeNowMs };
+const fakeIntervals = [];
+const fakeSetInterval = (fn) => { fakeIntervals.push(fn); return fakeIntervals.length; };
+const fakeClearInterval = (id) => { if (id) fakeIntervals[id - 1] = null; };
+// 画面の常時点灯（Screen Wake Lock）の偽物：取った回数と手放した回数を数える
+const wl = { requested: 0, released: 0 };
+const fakeNavigator = {
+  wakeLock: {
+    request() {
+      wl.requested++;
+      return Promise.resolve({ release() { wl.released++; return Promise.resolve(); }, addEventListener() {} });
+    },
+  },
+};
 const boot = new Function(
-  'document', 'window', 'localStorage', 'navigator', 'requestAnimationFrame',
+  'document', 'window', 'localStorage', 'navigator', 'requestAnimationFrame', 'Date', 'setInterval', 'clearInterval',
   appSrc
 );
 
@@ -137,7 +153,7 @@ console.log('=== nameless_pulse_web 疑似DOMスモークテスト ===\n');
 
 console.log('[1] 起動（DOMContentLoaded → init）');
 try {
-  boot(fakeDocument, fakeWindow, fakeLocalStorage, {}, fakeRaf);
+  boot(fakeDocument, fakeWindow, fakeLocalStorage, fakeNavigator, fakeRaf, FakeDate, fakeSetInterval, fakeClearInterval);
   for (const fn of docHandlers['DOMContentLoaded'] || []) fn();
   ok('例外なく起動した');
 } catch (e) {
@@ -200,5 +216,31 @@ try {
   fail('設定パネル開閉で例外: ' + e.message);
 }
 
-console.log('\n=== 結果: ' + (FAIL === 0 ? 'ALL OK' : `${FAIL} 件の失敗`) + ' ===');
-process.exit(FAIL === 0 ? 0 : 1);
+console.log('\n[6] 画面の常時点灯（Screen Wake Lock）：起動で取り、おやすみなさいで手放し、タップで取り直す');
+(async () => {
+  const tick = () => new Promise((r) => setImmediate(r));
+  await tick();
+  if (wl.requested === 1 && wl.released === 0) ok('起動時に1回取った');
+  else fail('起動時: requested=' + wl.requested + ' released=' + wl.released);
+  // タイマー15分を選んで設定を閉じる → 開始
+  click(byId['btn-settings']);
+  click(allEls.find((e) => e.dataset.timer === '15'));
+  click(byId['btn-back']);
+  await tick();
+  if (wl.requested === 1 && wl.released === 0) ok('タイマー開始では取り直さず持ったまま');
+  else fail('タイマー中: requested=' + wl.requested + ' released=' + wl.released);
+  // 16分進めて、1秒ごとの数えを1回動かす → おやすみなさい
+  fakeNowMs += 16 * 60 * 1000;
+  for (const fn of fakeIntervals) if (fn) fn();
+  await tick();
+  if (byId['good-night'].classList.contains('show') && wl.released === 1) ok('おやすみなさい表示で手放した');
+  else fail('満了後: show=' + byId['good-night'].classList.contains('show') + ' released=' + wl.released);
+  // タップで起きる → 取り直す
+  for (const fn of byId['app']._handlers['pointerdown'] || []) fn({ target: byId['app'], clientX: 10, clientY: 10, pointerId: 1 });
+  await tick();
+  if (!byId['good-night'].classList.contains('show') && wl.requested === 2) ok('タップで起きて取り直した');
+  else fail('起床後: show=' + byId['good-night'].classList.contains('show') + ' requested=' + wl.requested);
+
+  console.log('\n=== 結果: ' + (FAIL === 0 ? 'ALL OK' : `${FAIL} 件の失敗`) + ' ===');
+  process.exit(FAIL === 0 ? 0 : 1);
+})();

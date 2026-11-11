@@ -1,5 +1,5 @@
 ﻿// 非言語サポーターアプリ そよぎ - Service Worker
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const CACHE_NAME = `nameless-pulse-${CACHE_VERSION}`;
 
 const CORE_ASSETS = [

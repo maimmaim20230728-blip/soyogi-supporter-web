@@ -18,6 +18,7 @@ html, body {
 body {
   background: linear-gradient(135deg, #1a1610 0%, #050505 100%);
   min-height: 100vh;
+  min-height: 100dvh; /* Safari のアドレスバーが出ている間も、見えている高さに合わせる */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -30,6 +31,7 @@ body {
   width: 100%;
   max-width: 450px;
   height: 100vh;
+  height: 100dvh;
   max-height: 900px;
   aspect-ratio: 9 / 16;
   background: #000;
@@ -39,13 +41,14 @@ body {
 }
 
 @media (min-width: 480px) {
-  #app { border-radius: 32px; height: 94vh; }
+  #app { border-radius: 32px; height: 94vh; height: 94dvh; }
 }
 @media (max-width: 479px) {
   body { background: #000; }
   #app {
     max-height: none;
     height: 100vh;
+    height: 100dvh;
     aspect-ratio: auto;
     border-radius: 0;
     box-shadow: none;
@@ -94,7 +97,7 @@ body {
 /* 下部3ボタン */
 .bottom-bar {
   position: absolute;
-  bottom: 28px;
+  bottom: calc(28px + env(safe-area-inset-bottom)); /* ホームバーと重ならないよう下の余白を足す */
   left: 24px;
   right: 24px;
   display: flex;
