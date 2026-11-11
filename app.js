@@ -18,31 +18,46 @@ const KEYS = {
 // おやすみタイマーは「都度設定」。永続保存せずアプリ内メモリだけで持つ（起動時は常に なし）。
 let _timerMinutes = null;
 
+// localStorage が使えない環境（遮断・プライベート等）でも落ちないよう、失敗時はメモリ上の値で動かす。
+const _memStore = {};
+function lsGet(k) {
+  try { const v = localStorage.getItem(k); return v === undefined ? null : v; }
+  catch (e) { return Object.prototype.hasOwnProperty.call(_memStore, k) ? _memStore[k] : null; }
+}
+function lsSet(k, v) {
+  _memStore[k] = String(v);
+  try { localStorage.setItem(k, String(v)); } catch (e) { /* メモリ上の値で続行 */ }
+}
+function lsRemove(k) {
+  delete _memStore[k];
+  try { localStorage.removeItem(k); } catch (e) { /* 無視 */ }
+}
+
 const settings = {
-  get defaultMode() { return localStorage.getItem(KEYS.defaultMode) || 'heartbeat'; },
-  set defaultMode(v) { localStorage.setItem(KEYS.defaultMode, v); },
-  get vibration() { const v = localStorage.getItem(KEYS.vibration); return v === null ? true : v === 'true'; },
-  set vibration(v) { localStorage.setItem(KEYS.vibration, String(v)); },
+  get defaultMode() { return lsGet(KEYS.defaultMode) || 'heartbeat'; },
+  set defaultMode(v) { lsSet(KEYS.defaultMode, v); },
+  get vibration() { const v = lsGet(KEYS.vibration); return v === null ? true : v === 'true'; },
+  set vibration(v) { lsSet(KEYS.vibration, String(v)); },
   // 振動の強さ: 0=よわい / 1=ふつう / 2=つよい（デフォルト1）。webは振幅制御が無いので長さで表現。
-  get vibrationStrength() { return parseInt(localStorage.getItem(KEYS.vibrationStrength) ?? '1'); },
-  set vibrationStrength(v) { localStorage.setItem(KEYS.vibrationStrength, String(v)); },
-  get sound() { return localStorage.getItem(KEYS.sound) === 'true'; },
-  set sound(v) { localStorage.setItem(KEYS.sound, String(v)); },
-  get volume() { return parseFloat(localStorage.getItem(KEYS.volume) ?? '0.5'); },
-  set volume(v) { localStorage.setItem(KEYS.volume, String(v)); },
+  get vibrationStrength() { return parseInt(lsGet(KEYS.vibrationStrength) ?? '1'); },
+  set vibrationStrength(v) { lsSet(KEYS.vibrationStrength, String(v)); },
+  get sound() { return lsGet(KEYS.sound) === 'true'; },
+  set sound(v) { lsSet(KEYS.sound, String(v)); },
+  get volume() { return parseFloat(lsGet(KEYS.volume) ?? '0.5'); },
+  set volume(v) { lsSet(KEYS.volume, String(v)); },
   // null = なし。都度設定：永続保存しない（設定の選択は「今回だけ」）。
   get timer() { return _timerMinutes; },
   set timer(v) { _timerMinutes = (v == null ? null : v); },
-  get pulseSize() { return parseFloat(localStorage.getItem(KEYS.pulseSize) ?? '1.0'); },
-  set pulseSize(v) { localStorage.setItem(KEYS.pulseSize, String(v)); },
-  get pulseSpeed() { return parseInt(localStorage.getItem(KEYS.pulseSpeed) ?? '0'); },
-  set pulseSpeed(v) { localStorage.setItem(KEYS.pulseSpeed, String(v)); },
-  get sandFade() { return parseInt(localStorage.getItem(KEYS.sandFade) ?? '0'); },
-  set sandFade(v) { localStorage.setItem(KEYS.sandFade, String(v)); },
-  get lang() { return localStorage.getItem(KEYS.lang) || 'ja'; },
-  set lang(v) { localStorage.setItem(KEYS.lang, v); },
-  get firstLaunch() { return localStorage.getItem(KEYS.firstLaunch) !== 'false'; },
-  set firstLaunch(v) { localStorage.setItem(KEYS.firstLaunch, String(v)); },
+  get pulseSize() { return parseFloat(lsGet(KEYS.pulseSize) ?? '1.0'); },
+  set pulseSize(v) { lsSet(KEYS.pulseSize, String(v)); },
+  get pulseSpeed() { return parseInt(lsGet(KEYS.pulseSpeed) ?? '0'); },
+  set pulseSpeed(v) { lsSet(KEYS.pulseSpeed, String(v)); },
+  get sandFade() { return parseInt(lsGet(KEYS.sandFade) ?? '0'); },
+  set sandFade(v) { lsSet(KEYS.sandFade, String(v)); },
+  get lang() { return lsGet(KEYS.lang) || 'ja'; },
+  set lang(v) { lsSet(KEYS.lang, v); },
+  get firstLaunch() { return lsGet(KEYS.firstLaunch) !== 'false'; },
+  set firstLaunch(v) { lsSet(KEYS.firstLaunch, String(v)); },
   pulseMillis() {
     switch (this.pulseSpeed) { case 1: return 1333; case 2: return 1714; default: return 1000; }
   },
@@ -565,6 +580,7 @@ function updateTimerDisplay() {
   if (remain <= 0) {
     timerExpired = true;   // 鼓動を止めて「おやすみなさい」を表示（タップで再開）
     settings.timer = null; // 都度設定なので満了で選択も「なし」に戻す（Flutter版と同じ状態遷移）
+    timerSelAtOpen = null; // 設定を開いたまま満了しても、閉じた時に勝手に起きないよう開いた時点の値も揃える
     stopTimer();
     showGoodNight();
   }
@@ -828,7 +844,7 @@ function onPointerUp(e) {
       const delay = settings.sandFadeDelayMs() + Math.random() * 2000;
       setTimeout(() => {
         stroke.dissolving = true;
-        playWind();
+        if (!timerExpired) playWind();
       }, delay);
     }
   }
@@ -1085,7 +1101,7 @@ function bindEvents() {
 // ===== 起動 =====
 function init() {
   // 旧仕様で永続化されていたタイマー値は起動時は無視（掃除）。都度設定なので毎起動は「なし」。
-  localStorage.removeItem(KEYS.timer);
+  lsRemove(KEYS.timer);
   resizeCanvas();
   bindEvents();
   applyI18n();
